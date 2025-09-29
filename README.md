@@ -1,11 +1,21 @@
-# Welcome to React Router!
+# Smart Box Web - Website Monitoring Smart Box
 
-A modern, production-ready template for building full-stack React applications using React Router.
+Website Monitoring Smart Box - MBKM BRIN
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/remix-run/react-router-templates/tree/main/default)
+A modern, production-ready web application for monitoring Smart Box systems with real-time data visualization, built using React Router.
 
 ## Features
 
+### Smart Box Dashboard
+- 📊 Real-time temperature and humidity monitoring
+- 🌡️ Temperature status indicators (Frozen, Safe Point, Danger)
+- 💧 Humidity status indicators (Safe Point, Danger)
+- 📍 GPS location tracking with Google Maps integration
+- ⏰ Automatic data updates every 10 seconds
+- 🚨 Warning system with alert functionality
+- 📱 Fully responsive design for mobile, tablet, and desktop
+
+### Technical Features
 - 🚀 Server-side rendering
 - ⚡️ Hot Module Replacement (HMR)
 - 📦 Asset bundling and optimization
@@ -49,10 +59,10 @@ npm run build
 To build and run using Docker:
 
 ```bash
-docker build -t my-app .
+docker build -t smart-box-web .
 
 # Run the container
-docker run -p 3000:3000 my-app
+docker run -p 3000:3000 smart-box-web
 ```
 
 The containerized application can be deployed to any platform that supports Docker, including:
@@ -84,4 +94,4 @@ This template comes with [Tailwind CSS](https://tailwindcss.com/) already config
 
 ---
 
-Built with ❤️ using React Router.
+Built with ❤️ using React Router for MBKM BRIN Smart Box Monitoring System.
