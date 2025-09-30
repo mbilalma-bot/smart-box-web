@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useMQTT } from "../hooks/useMQTT";
+import { useNavigate } from "react-router";
 
 type LatLng = { lat: number; lng: number; accuracy?: number | null };
 
@@ -36,15 +38,86 @@ export function meta() {
 }
 
 export default function Dashboard() {
-  const [temperature, setTemperature] = useState<number>(-5);
-  const [humidity, setHumidity] = useState<number>(80);
+  const navigate = useNavigate();
+  
+  // MQTT Integration
+  const { 
+    smartBoxData, 
+    connectionStatus, 
+    sendWarning, 
+    isConnected, 
+    isConnecting 
+  } = useMQTT();
+
+  // User state
+  const [user, setUser] = useState<{ email: string; isLoggedIn: boolean } | null>(null);
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Local state for UI
   const [lastUpdate, setLastUpdate] = useState<string>("--:--:--");
   const [locationText, setLocationText] = useState<string>("Getting Location...");
   const [coordinatesText, setCoordinatesText] = useState<string>("Loading coordinates...");
   const [locationUpdateTime, setLocationUpdateTime] = useState<string>("Loading...");
-  const [statusClass, setStatusClass] = useState<"normal" | "warning" | "danger">("warning");
-  const [statusLabel, setStatusLabel] = useState<string>("Detecting Location");
+  const [statusClass, setStatusClass] = useState<"normal" | "warning" | "danger" | "connecting">("warning");
+  const [statusLabel, setStatusLabel] = useState<string>("Connecting to Smart Box");
   const [currentLocation, setCurrentLocation] = useState<LatLng | null>(null);
+
+  // Check for logged in user
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (userData) {
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+      } catch (error) {
+        console.error("Error parsing user data:", error);
+        localStorage.removeItem("user");
+      }
+    }
+  }, []);
+
+  // Handle click outside dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowUserDropdown(false);
+      }
+    };
+
+    if (showUserDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showUserDropdown]);
+
+  // Handle logout
+  const handleLogout = () => {
+    localStorage.removeItem("user");
+    setUser(null);
+    navigate("/", { replace: true });
+  };
+
+  // Handle browser back button - logout when navigating back from dashboard
+  useEffect(() => {
+    const handlePopState = () => {
+      // When user clicks back button from dashboard, logout
+      handleLogout();
+    };
+
+    window.addEventListener('popstate', handlePopState);
+
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+    };
+  }, []);
+
+  // Extract data from MQTT
+  const temperature = smartBoxData.temperature.value;
+  const humidity = smartBoxData.humidity.value;
 
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstance = useRef<any>(null);
@@ -80,74 +153,41 @@ export default function Dashboard() {
     return () => clearInterval(t);
   }, []);
 
-  // Generate random temperature and humidity every 10 seconds
+  // Update system status based on MQTT connection and data
   useEffect(() => {
-    const updateSensorData = () => {
-      // Random temperature between -10 to 10 degrees Celsius
-      const newTemp = Math.floor(Math.random() * 21) - 10; // -10 to 10
-      setTemperature(newTemp);
-      
-      // Random humidity between 70% to 95%
-      const newHumidity = Math.floor(Math.random() * 26) + 70; // 70 to 95
-      setHumidity(newHumidity);
-    };
-    
-    updateSensorData(); // Initial update
-    const t = setInterval(updateSensorData, 10000); // 10 seconds
-    return () => clearInterval(t);
-  }, []);
+    if (isConnecting) {
+      setStatusClass("warning");
+      setStatusLabel("Connecting to Smart Box");
+    } else if (isConnected && smartBoxData.systemStatus.online) {
+      setStatusClass("normal");
+      setStatusLabel("Smart Box Online");
+    } else if (isConnected && !smartBoxData.systemStatus.online) {
+      setStatusClass("danger");
+      setStatusLabel("Smart Box Offline");
+    } else {
+      setStatusClass("danger");
+      setStatusLabel("Connection Failed");
+    }
+  }, [isConnecting, isConnected, smartBoxData.systemStatus.online]);
 
-  // Geolocation - updated every 10 seconds
+  // Update location data from MQTT payload
   useEffect(() => {
-    const updateLocation = () => {
-      if (!navigator.geolocation) {
-        setCurrentLocation({ lat: -6.2088, lng: 106.8456, accuracy: null });
-        setCoordinatesText(`Lat: -6.2088, Lng: 106.8456`);
-        setLocationText("Default Location (GPS Unavailable)");
-        setLocationUpdateTime(`Updated on ${formatDateTime(new Date())}`);
-        setStatusClass("danger");
-        setStatusLabel("GPS Unavailable");
-        return;
-      }
-
-      const onSuccess = (position: GeolocationPosition) => {
-        const loc = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          accuracy: position.coords.accuracy,
-        };
-        setCurrentLocation(loc);
-        setCoordinatesText(`Lat: ${loc.lat.toFixed(6)}, Lng: ${loc.lng.toFixed(6)}`);
-        setLocationText("Current Device Location");
-        setLocationUpdateTime(`Updated on ${formatDateTime(new Date())}`);
-        setStatusClass("normal");
-        setStatusLabel("Location Active");
-      };
-
-      const onError = () => {
-        setCurrentLocation({ lat: -6.2088, lng: 106.8456, accuracy: null });
-        setCoordinatesText(`Lat: -6.2088, Lng: 106.8456`);
-        setLocationText("Default Location (GPS Unavailable)");
-        setLocationUpdateTime(`Updated on ${formatDateTime(new Date())}`);
-        setStatusClass("danger");
-        setStatusLabel("GPS Unavailable");
-      };
-
-      navigator.geolocation.getCurrentPosition(onSuccess, onError, {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0, // Always get fresh location
-      });
-    };
-
-    // Initial location update
-    updateLocation();
+    const { latitude, longitude, lastUpdate } = smartBoxData.location;
     
-    // Update location every 10 seconds
-    const locationInterval = setInterval(updateLocation, 10000);
-    
-    return () => clearInterval(locationInterval);
-  }, []);
+    // Use MQTT location data if available and valid
+    if (latitude !== 0 && longitude !== 0) {
+      setCurrentLocation({ lat: latitude, lng: longitude, accuracy: 10 });
+      setCoordinatesText(`Lat: ${latitude.toFixed(6)}, Lng: ${longitude.toFixed(6)}`);
+      setLocationText("Device Location (MQTT)");
+      setLocationUpdateTime(`Updated: ${lastUpdate}`);
+    } else {
+      // Fallback to default location if no MQTT data
+      setCurrentLocation({ lat: -6.2088, lng: 106.8456, accuracy: null });
+      setCoordinatesText(`Lat: -6.2088, Lng: 106.8456`);
+      setLocationText("Default Location (No GPS Data)");
+      setLocationUpdateTime(`Updated on ${formatDateTime(new Date())}`);
+    }
+  }, [smartBoxData.location]);
 
   // Initialize and update Google Map
   useEffect(() => {
@@ -210,21 +250,88 @@ export default function Dashboard() {
 
   // Handle Send Warning button click
   const handleSendWarning = () => {
-    alert(`Warning sent!\n\nCurrent Status:\nTemperature: ${temperature}°C (${temperatureStatus.label})\nHumidity: ${humidity}% (${humidityStatus.label})\nTime: ${formatDateTime(new Date())}`);
+    const warningMessage = {
+      temperature: temperature,
+      humidity: humidity,
+      temperatureStatus: temperatureStatus.label,
+      humidityStatus: humidityStatus.label,
+      timestamp: new Date().toISOString(),
+      location: currentLocation
+    };
+    
+    sendWarning("system", `Temperature: ${temperature}°C (${temperatureStatus.label}), Humidity: ${humidity}% (${humidityStatus.label})`, "high");
+    alert(`Warning sent via MQTT!\n\nCurrent Status:\nTemperature: ${temperature}°C (${temperatureStatus.label})\nHumidity: ${humidity}% (${humidityStatus.label})\nTime: ${formatDateTime(new Date())}`);
   };
 
   return (
     <div className="min-h-screen flex flex-col p-4 sm:p-6 lg:p-8 w-full bg-white">
       <div className="mx-auto w-full max-w-7xl">
-        <header className="text-center mb-4 sm:mb-6">
+        <header className="text-center mb-4 sm:mb-6 relative">
           <h1 className="inline-block text-white font-bold shadow-md rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-[clamp(1.2rem,4vw,2.5rem)] bg-emerald-500">
             <span className="text-yellow-300">Smart Box</span> for Fish Storage Monitoring
           </h1>
+          
+          {/* User Dropdown */}
+          {user && (
+            <div className="absolute top-0 right-0 mt-2 mr-2 sm:mr-0">
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowUserDropdown(!showUserDropdown)}
+                  className="flex items-center gap-1 sm:gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-3 py-1 sm:py-2 rounded-lg transition-colors duration-200 backdrop-blur-sm"
+                >
+                  <i className="fas fa-user-circle text-sm sm:text-lg"></i>
+                  <span className="text-xs sm:text-sm font-medium hidden sm:inline truncate max-w-[100px] sm:max-w-none">{user.email}</span>
+                  <span className="text-xs font-medium sm:hidden">User</span>
+                  <i className={`fas fa-chevron-down text-xs transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`}></i>
+                </button>
+                
+                {showUserDropdown && (
+                  <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                    <div className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 border-b border-gray-100">
+                      <div className="font-medium">Logged in as:</div>
+                      <div className="text-gray-500 truncate text-xs sm:text-sm">{user.email}</div>
+                    </div>
+                    <button
+                      onClick={handleLogout}
+                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-yellow-600 hover:bg-yellow-50 transition-colors duration-200 flex items-center gap-2"
+                    >
+                      <i className="fas fa-sign-out-alt text-xs sm:text-sm"></i>
+                      Logout
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </header>
 
-        <main className="flex flex-col lg:flex-row gap-4 sm:gap-6 items-start justify-center">
-          <div className="flex flex-col gap-4 sm:gap-6 w-full lg:w-[420px] lg:shrink-0">
-            <section id="box-status">
+        <main className="flex flex-col gap-4 sm:gap-6 items-start justify-center pt-4 sm:pt-6">
+          {/* Device ID Container */}
+          <section id="device-info" className="w-full lg:w-[420px] lg:shrink-0">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-xl p-4 sm:p-6 shadow-lg border border-indigo-200">
+              <div className="flex items-center gap-3 sm:gap-4">
+                <div className="w-[50px] h-[50px] sm:w-[60px] sm:h-[60px] rounded-full flex items-center justify-center text-xl sm:text-2xl shrink-0 bg-white/20 text-white">
+                  <i className="fas fa-microchip" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-white/80 font-medium mb-1 text-sm sm:text-base">Device ID</h3>
+                  <p className="text-lg sm:text-xl font-bold text-white mb-1 break-all" id="device-id-value">
+                    {smartBoxData.deviceId}
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+                    <span className="text-white/70 text-xs sm:text-sm">
+                      {isConnected ? 'Connected' : 'Disconnected'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Box Status and Location Status - Side by Side */}
+          <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 w-full">
+            <section id="box-status" className="flex-1 lg:max-w-[420px]">
               <h2 className="text-lg sm:text-xl font-semibold text-red-500 inline-block mb-4 sm:mb-6 pb-2 border-b-2 border-red-500">Box Status</h2>
 
               <div className="flex flex-col gap-4">
@@ -263,7 +370,7 @@ export default function Dashboard() {
 
               <h2 className="text-lg sm:text-xl font-semibold text-emerald-600 inline-block mt-6 sm:mt-8 mb-3 sm:mb-4 pb-2 border-b-2 border-emerald-600">System Status</h2>
               <div className="flex flex-col gap-4">
-                <div className="bg-slate-50 rounded-xl p-4 sm:p-6 shadow border border-slate-200">
+                <div className="bg-slate-50 rounded-xl p-4 sm:p-6 shadow border border-slate-200 hover:-translate-y-0.5 hover:shadow-lg transition">
                   <div className="flex items-start gap-3 sm:gap-4">
                     <div className="w-[50px] h-[50px] sm:w-[65px] sm:h-[65px] rounded-full flex items-center justify-center text-xl sm:text-2xl shrink-0 bg-gradient-to-br from-emerald-100 to-emerald-500 text-emerald-800">
                       <i className="fas fa-server" />
@@ -318,37 +425,44 @@ export default function Dashboard() {
                 </div>
               </div>
             </section>
-          </div>
 
-          <section id="location-status" className="w-full lg:w-[780px] lg:shrink-0">
-            <h2 className="text-lg sm:text-xl font-semibold text-blue-600 inline-block mb-4 sm:mb-6 pb-2 border-b-2 border-blue-600">Location Status</h2>
-            <div className="bg-slate-50 rounded-xl overflow-hidden shadow border border-slate-200">
-              <div id="map" ref={mapRef} className="w-full h-[300px] sm:h-[400px] lg:h-[500px]" />
-              <div className="p-4 sm:p-6 bg-white">
-                <div className="flex items-center gap-3 mb-2">
-                  <i className="fas fa-map-marker-alt text-red-500 text-base sm:text-lg" />
-                  <span id="location-text" className="font-semibold text-slate-800 text-sm sm:text-base break-words">{locationText}</span>
-                </div>
-                <div className="font-mono text-xs sm:text-sm text-slate-500 mb-2 break-all">
-                  <span id="coordinates">{coordinatesText}</span>
-                </div>
-                <div className="text-xs sm:text-sm text-slate-400 mb-2 italic">
-                  <span id="location-update-time">{locationUpdateTime}</span>
-                </div>
-                <div className="mt-2">
-                  <span id="location-status-indicator" className={`inline-flex items-center gap-2 rounded-full px-2 sm:px-2.5 py-1 text-xs font-medium ${
-                    statusClass === "normal"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : statusClass === "warning"
-                      ? "bg-amber-100 text-amber-700"
-                      : "bg-red-100 text-red-600"
-                  }`}>
-                    {statusLabel}
-                  </span>
+            <section id="location-status" className="flex-1 lg:max-w-[780px]">
+              <h2 className="text-lg sm:text-xl font-semibold text-blue-600 inline-block mb-4 sm:mb-6 pb-2 border-b-2 border-blue-600">Location Status</h2>
+              <div className="bg-slate-50 rounded-xl overflow-hidden shadow border border-slate-200">
+                <div id="map" ref={mapRef} className="w-full h-[300px] sm:h-[400px] lg:h-[500px]" />
+                <div className="p-4 sm:p-6 bg-white">
+                  <div className="flex items-center gap-3 mb-2">
+                    <i className="fas fa-map-marker-alt text-red-500 text-base sm:text-lg" />
+                    <span id="location-text" className="font-semibold text-slate-800 text-sm sm:text-base break-words">{locationText}</span>
+                  </div>
+                  <div className="font-mono text-xs sm:text-sm text-slate-500 mb-2 break-all">
+                    <span id="coordinates">{coordinatesText}</span>
+                  </div>
+                  <div className="text-xs sm:text-sm text-slate-400 mb-2 italic">
+                    <span id="location-update-time">{locationUpdateTime}</span>
+                  </div>
+                  <div className="mt-2">
+                    <span id="location-status-indicator" className={`inline-flex items-center gap-2 rounded-full px-2 sm:px-2.5 py-1 text-xs font-medium ${
+                      statusClass === "normal"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : statusClass === "warning"
+                        ? "bg-amber-100 text-amber-700"
+                        : statusClass === "connecting"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-red-100 text-red-600"
+                    }`}>
+                      {isConnected ? (
+                        <i className="fas fa-wifi text-emerald-600" />
+                      ) : (
+                        <i className="fas fa-wifi-slash text-red-600" />
+                      )}
+                      {statusLabel}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-          </section>
+            </section>
+          </div>
         </main>
       </div>
     </div>
