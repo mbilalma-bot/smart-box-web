@@ -145,13 +145,12 @@ export default function Dashboard() {
     return `${day}-${month}-${year} (${hours}:${minutes}:${seconds})`;
   };
 
-  // Last update clock - updated every 10 seconds
+  // Last update clock - updated when MQTT data is received
   useEffect(() => {
-    const update = () => setLastUpdate(formatDateTime(new Date()));
-    update();
-    const t = setInterval(update, 10000); // 10 seconds
-    return () => clearInterval(t);
-  }, []);
+    if (smartBoxData.systemStatus.lastUpdate !== "Never") {
+      setLastUpdate(smartBoxData.systemStatus.lastUpdate);
+    }
+  }, [smartBoxData.systemStatus.lastUpdate]);
 
   // Update system status based on MQTT connection and data
   useEffect(() => {
@@ -267,42 +266,45 @@ export default function Dashboard() {
     <div className="min-h-screen flex flex-col p-4 sm:p-6 lg:p-8 w-full bg-white">
       <div className="mx-auto w-full max-w-7xl">
         <header className="text-center mb-4 sm:mb-6 relative">
-          <h1 className="inline-block text-white font-bold shadow-md rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-[clamp(1.2rem,4vw,2.5rem)] bg-emerald-500">
-            <span className="text-yellow-300">Smart Box</span> for Fish Storage Monitoring
-          </h1>
-          
-          {/* User Dropdown */}
-          {user && (
-            <div className="absolute top-0 right-0 mt-2 mr-2 sm:mr-0">
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={() => setShowUserDropdown(!showUserDropdown)}
-                  className="flex items-center gap-1 sm:gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-3 py-1 sm:py-2 rounded-lg transition-colors duration-200 backdrop-blur-sm"
-                >
-                  <i className="fas fa-user-circle text-sm sm:text-lg"></i>
-                  <span className="text-xs sm:text-sm font-medium hidden sm:inline truncate max-w-[100px] sm:max-w-none">{user.email}</span>
-                  <span className="text-xs font-medium sm:hidden">User</span>
-                  <i className={`fas fa-chevron-down text-xs transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`}></i>
-                </button>
-                
-                {showUserDropdown && (
-                  <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
-                    <div className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 border-b border-gray-100">
-                      <div className="font-medium">Logged in as:</div>
-                      <div className="text-gray-500 truncate text-xs sm:text-sm">{user.email}</div>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-0 sm:relative">
+            {/* User Dropdown - positioned absolutely on desktop */}
+            {user && (
+              <div className="flex justify-center sm:absolute sm:right-0 sm:top-0">
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={() => setShowUserDropdown(!showUserDropdown)}
+                    className="flex items-center gap-1 sm:gap-2 bg-yellow-500 hover:bg-yellow-600 text-white px-2 sm:px-3 py-1 sm:py-2 rounded-lg transition-colors duration-200 backdrop-blur-sm"
+                  >
+                    <i className="fas fa-user-circle text-sm sm:text-lg"></i>
+                    <span className="text-xs sm:text-sm font-medium hidden sm:inline truncate max-w-[100px] sm:max-w-none">{user.email}</span>
+                    <span className="text-xs font-medium sm:hidden">User</span>
+                    <i className={`fas fa-chevron-down text-xs transition-transform duration-200 ${showUserDropdown ? 'rotate-180' : ''}`}></i>
+                  </button>
+                  
+                  {showUserDropdown && (
+                    <div className="absolute right-0 mt-2 w-44 sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                      <div className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-700 border-b border-gray-100">
+                        <div className="font-medium">Logged in as:</div>
+                        <div className="text-gray-500 truncate text-xs sm:text-sm">{user.email}</div>
+                      </div>
+                      <button
+                        onClick={handleLogout}
+                        className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-yellow-600 hover:bg-yellow-50 transition-colors duration-200 flex items-center gap-2"
+                      >
+                        <i className="fas fa-sign-out-alt text-xs sm:text-sm"></i>
+                        Logout
+                      </button>
                     </div>
-                    <button
-                      onClick={handleLogout}
-                      className="w-full text-left px-3 sm:px-4 py-2 text-xs sm:text-sm text-yellow-600 hover:bg-yellow-50 transition-colors duration-200 flex items-center gap-2"
-                    >
-                      <i className="fas fa-sign-out-alt text-xs sm:text-sm"></i>
-                      Logout
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+            
+            {/* Title - always centered */}
+            <h1 className="text-white font-bold shadow-md rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-[clamp(1.2rem,4vw,2.5rem)] bg-emerald-500 mx-auto">
+              <span className="text-yellow-300">Smart Box</span> for Fish Storage Monitoring
+            </h1>
+          </div>
         </header>
 
         <main className="flex flex-col gap-4 sm:gap-6 items-start justify-center pt-4 sm:pt-6">
