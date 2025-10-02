@@ -258,8 +258,8 @@ export default function Dashboard() {
       location: currentLocation
     };
     
-    sendWarning("system", `Temperature: ${temperature}°C (${temperatureStatus.label}), Humidity: ${humidity}% (${humidityStatus.label})`, "high");
-    alert(`Warning sent via MQTT!\n\nCurrent Status:\nTemperature: ${temperature}°C (${temperatureStatus.label})\nHumidity: ${humidity}% (${humidityStatus.label})\nTime: ${formatDateTime(new Date())}`);
+    sendWarning("system", `Temperature: ${temperature.toFixed(2)}°C (${temperatureStatus.label}), Humidity: ${humidity.toFixed(2)}% (${humidityStatus.label})`, "high");
+    alert(`Warning sent via MQTT!\n\nCurrent Status:\nTemperature: ${temperature.toFixed(2)}°C (${temperatureStatus.label})\nHumidity: ${humidity.toFixed(2)}% (${humidityStatus.label})\nTime: ${formatDateTime(new Date())}`);
   };
 
   return (
@@ -302,7 +302,7 @@ export default function Dashboard() {
             
             {/* Title - always centered */}
             <h1 className="text-white font-bold shadow-md rounded-xl px-4 sm:px-6 py-3 sm:py-4 text-[clamp(1.2rem,4vw,2.5rem)] bg-emerald-500 mx-auto">
-              <span className="text-yellow-300">Smart Box</span> for Fish Storage Monitoring
+              <span className="text-yellow-300">Smart Box</span> for Fish Storage <span className="text-yellow-300">Monitoring</span>
             </h1>
           </div>
         </header>
@@ -343,7 +343,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-slate-500 font-medium mb-2 text-sm sm:text-base">Temperature</h3>
-                    <p className="text-xl sm:text-2xl font-bold text-slate-800 mb-2" id="temperature-value">{temperature}°C</p>
+                    <p className="text-xl sm:text-2xl font-bold text-slate-800 mb-2" id="temperature-value">{temperature.toFixed(2)}°C</p>
                     <span className={`inline-flex items-center gap-2 rounded-full px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium ${
                       temperatureStatus.cls === "safe"
                         ? "bg-emerald-100 text-emerald-700"
@@ -360,7 +360,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-slate-500 font-medium mb-2 text-sm sm:text-base">Humidity</h3>
-                    <p className="text-xl sm:text-2xl font-bold text-slate-800 mb-2" id="humidity-value">{humidity}%</p>
+                    <p className="text-xl sm:text-2xl font-bold text-slate-800 mb-2" id="humidity-value">{humidity.toFixed(2)}%</p>
                     <span className={`inline-flex items-center gap-2 rounded-full px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium ${
                       humidityStatus.cls === "safe"
                         ? "bg-emerald-100 text-emerald-700"
@@ -394,7 +394,7 @@ export default function Dashboard() {
                     <div className="text-slate-600 text-xs sm:text-sm ml-1">
                       <div className="mb-2">
                         <div className="mb-1">
-                          <strong>Current Temperature:</strong> {temperature}°C
+                          <strong>Current Temperature:</strong> {temperature.toFixed(2)}°C
                         </div>
                         <span className={`inline-flex items-center gap-2 rounded-full px-2 sm:px-3 py-1 text-xs font-medium ${
                           temperatureStatus.cls === "safe"
@@ -406,7 +406,7 @@ export default function Dashboard() {
                       </div>
                       <div className="mb-2">
                         <div className="mb-1">
-                          <strong>Current Humidity:</strong> {humidity}%
+                          <strong>Current Humidity:</strong> {humidity.toFixed(2)}%
                         </div>
                         <span className={`inline-flex items-center gap-2 rounded-full px-2 sm:px-3 py-1 text-xs font-medium ${
                           humidityStatus.cls === "safe"

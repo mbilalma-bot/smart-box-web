@@ -21,7 +21,7 @@ export const hiveMQConfig: MQTTConfig = {
   username: "smartbox-user", // Kredensial alternatif - pastikan terdaftar di HiveMQ Console
   password: "SMARTbox123", // Password yang lebih kuat
   keepalive: 60,
-  reconnectPeriod: 5000, // Increased to 5 seconds to reduce reconnection frequency
+  reconnectPeriod: 1000, // Increased to 1 seconds to reduce reconnection frequency
   connectTimeout: 30 * 1000,
   clean: true,
 };

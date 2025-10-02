@@ -118,13 +118,13 @@ export const useMQTT = () => {
       ...prevData,
       deviceId: data.device_id,
       temperature: {
-        value: data.temperature,
+        value: parseFloat(data.temperature.toFixed(2)), // Convert back to number after truncating to 2 decimal places
         unit: "°C",
         status: getTemperatureStatus(data.temperature),
         lastUpdate: timestamp
       },
       humidity: {
-        value: data.humidity,
+        value: parseFloat(data.humidity.toFixed(2)), // Convert back to number after truncating to 2 decimal places
         unit: "%",
         status: getHumidityStatus(data.humidity),
         lastUpdate: timestamp
