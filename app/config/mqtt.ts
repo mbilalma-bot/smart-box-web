@@ -17,7 +17,7 @@ export const hiveMQConfig: MQTTConfig = {
   // Format: wss://your-cluster-url:8884/mqtt
   brokerUrl: "wss://67d560452e2d4534b5decfc22c4cb938.s1.eu.hivemq.cloud:8884/mqtt",
   port: 8884,
-  clientId: `smart-box-web-${Math.random().toString(16).substr(2, 8)}`,
+  clientId: "smart-box-web-1",
   username: "smartbox-user", // Kredensial alternatif - pastikan terdaftar di HiveMQ Console
   password: "SMARTbox123", // Password yang lebih kuat
   keepalive: 60,
