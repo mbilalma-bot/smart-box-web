@@ -129,7 +129,7 @@ export default function Login() {
             Login
           </h1>
           <p className="text-gray-600 text-xs sm:text-sm">
-            <span className="font-bold text-yellow-500">Smart Box</span> Monitoring
+            <span className="font-bold text-green-500">Smart Box</span> Monitoring
           </p>
         </div>
 
